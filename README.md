@@ -1,6 +1,6 @@
-# PyRust Engine 🚀
+# PyRust Engine
 
-> **⚠️ PROOF OF CONCEPT** - Educational project for learning hybrid microservices architecture with Python, Rust, and MongoDB.
+> **PROOF OF CONCEPT** - Educational project for learning hybrid microservices architecture with Python-Rust.
 
 ## What is this?
 
