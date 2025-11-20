@@ -1,12 +1,12 @@
 from flask import Blueprint, request, jsonify, current_app
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
 from app.decorators import log_api_call, log_and_store_api_call
 
 main_bp = Blueprint('main', __name__)
 
-def validate_price_input(data: Dict[str, Any] | None) -> tuple[bool, str]:
+def validate_price_input(data: Optional[Dict[str, Any]]) -> Tuple[bool, str]:
     #Validate pricing calculation input
     if not data:
         return False, "Request body is required"
