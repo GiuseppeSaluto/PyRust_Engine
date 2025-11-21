@@ -3,11 +3,21 @@ import requests
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
 from app.decorators import log_api_call, log_and_store_api_call
+from app.models import PricingLog
 
 main_bp = Blueprint('main', __name__)
 
 def validate_price_input(data: Optional[Dict[str, Any]]) -> Tuple[bool, str]:
-    #Validate pricing calculation input
+    """
+    Validate pricing calculation input.
+    Ensures data matches Rust PriceRequest schema.
+    
+    Expected schema (matches Rust):
+    {
+        "base_price": f64,  // float in Python
+        "factor": f64       // float in Python
+    }
+    """
     if not data:
         return False, "Request body is required"
     
@@ -60,6 +70,8 @@ def get_price():
     if not is_valid:
         return jsonify({"error": error_msg}), 400
     
+    assert data is not None
+    
     rust_url = f"{current_app.config['RUST_SERVICE_URL']}/calculate"
     
     try:
@@ -77,11 +89,8 @@ def get_price():
             mongo_client = current_app.config.get('MONGO_CLIENT')
             if mongo_client:
                 db = mongo_client.pyrust_db
-                db.logs.insert_one({
-                    "timestamp": datetime.utcnow(),
-                    "input": data, 
-                    "output": rust_result
-                })
+                pricing_log = PricingLog(input_data=data, result_data=rust_result)
+                db.logs.insert_one(pricing_log.to_dict())
         except Exception as db_error:
             current_app.logger.warning(f"MongoDB logging failed: {str(db_error)}")
         
