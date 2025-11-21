@@ -8,16 +8,6 @@ from app.models import PricingLog
 main_bp = Blueprint('main', __name__)
 
 def validate_price_input(data: Optional[Dict[str, Any]]) -> Tuple[bool, str]:
-    """
-    Validate pricing calculation input.
-    Ensures data matches Rust PriceRequest schema.
-    
-    Expected schema (matches Rust):
-    {
-        "base_price": f64,  // float in Python
-        "factor": f64       // float in Python
-    }
-    """
     if not data:
         return False, "Request body is required"
     
