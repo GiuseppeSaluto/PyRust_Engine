@@ -4,10 +4,11 @@ from functools import wraps
 from flask import request, current_app
 from datetime import datetime
 
+# Decorator to log API calls with request/response details Tracks: method, path, params, execution time, status code
+
 logger = logging.getLogger(__name__)
 
 def log_api_call(f):  
-    # Decorator to log API calls with request/response details Tracks: method, path, params, execution time, status code
     @wraps(f)
     def wrapper(*args, **kwargs):
         start_time = time.time()
@@ -57,10 +58,6 @@ def log_api_call(f):
 
 
 def log_and_store_api_call(f):
-    """
-    Extended decorator that also stores API calls in MongoDB
-    Use this for endpoints you want to track in the database
-    """
     @wraps(f)
     def wrapper(*args, **kwargs):
         start_time = time.time()
