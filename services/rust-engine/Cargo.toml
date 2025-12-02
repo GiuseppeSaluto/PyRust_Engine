@@ -1,1 +1,24 @@
-# Cargo manifest for Rust engine
+[package]
+name = "rust-engine"
+version = "0.1.0"
+edition = "2025"
+
+[dependencies]
+# Web Framework
+actix-web = "4.9"
+actix-rt = "2.10"
+
+# JSON Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Logging
+env_logger = "0.11"
+log = "0.4"
+
+# Error Handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+[dev-dependencies]
+actix-test = "0.1"
