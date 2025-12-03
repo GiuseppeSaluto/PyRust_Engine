@@ -16,6 +16,9 @@ NASA_NEO_FEED_ENDPOINT = "/neo/rest/v1/feed"
 
 RUST_ENGINE_URL = os.getenv("RUST_ENGINE_URL")
 
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_DB_NAME = os.getenv("MONGO_DB", "astroforge_db")
+
 LOG_DIRECTORY = os.getenv("LOG_DIRECTORY", "./logs")
 
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", 30))

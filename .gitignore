@@ -24,6 +24,8 @@ Cargo.lock
 .env
 .env.local
 .env.*.local
+infra/env/*.env
+!infra/env/*.env.example
 
 # IDEs
 .vscode/
