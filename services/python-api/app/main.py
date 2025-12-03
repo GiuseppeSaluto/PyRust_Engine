@@ -1,6 +1,6 @@
 from flask import Flask
 from app.core.mongodb import MongoDBClient
-from app.core.config import MONGO_URI, MONGO_DB_NAME
+from app.core.config import DEBUG, MONGO_URI, MONGO_DB_NAME
 from app.routes.nasa import nasa_bp  
 from app.routes.analysis import analysis_bp
 
@@ -17,4 +17,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=DEBUG)

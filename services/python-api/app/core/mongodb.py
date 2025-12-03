@@ -1,8 +1,8 @@
-import pymongo
 from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
 from flask import current_app
+from datetime import datetime
 
 from app.utils.logger import logger
 
@@ -29,7 +29,6 @@ class MongoDBClient:
 
             self._ensure_collections()
 
-            # Make this instance accessible via current_app.extensions
             if not hasattr(app, 'extensions'):
                 app.extensions = {}
             app.extensions["mongo"] = self
@@ -49,6 +48,7 @@ class MongoDBClient:
         required_collections = {
             "nasa_feeds": self._init_nasa_feeds,
             "asteroid_analyses": self._init_asteroid_analyses,
+            "asteroids_raw": self._init_asteroids_raw,
         }
 
         existing = self.db.list_collection_names()
@@ -84,6 +84,18 @@ class MongoDBClient:
 
         logger.debug("Initialized indexes for 'asteroid_analyses'")
 
+    def _init_asteroids_raw(self):
+        if self.db is None:
+            raise RuntimeError("Database not initialized")
+            
+        collection = self.db["asteroids_raw"]
+
+        collection.create_index("date")
+        collection.create_index("asteroid.id")
+        collection.create_index("stored_at")
+
+        logger.debug("Initialized indexes for 'asteroids_raw'")
+
     # -------------------------------------------------------------------------
     # CRUD Operations
     # -------------------------------------------------------------------------
@@ -100,6 +112,43 @@ class MongoDBClient:
 
         except PyMongoError as e:
             logger.error(f"Failed to save NASA feed: {e}")
+            raise
+
+    def save_raw_asteroid(self, date: str, asteroid: dict):      
+        # single asteroid data
+        if self.db is None:
+            raise RuntimeError("Database not initialized. Call init_app() first.")
+
+        try:
+            collection = self.db["asteroids_raw"]
+
+            document = {
+                "date": date,  # string: "2025-12-02"
+                "asteroid": asteroid,
+                "stored_at": datetime.utcnow(),
+            }
+
+            result = collection.insert_one(document)
+
+            logger.info(f"Inserted raw asteroid for {date} with id {result.inserted_id}")
+            return result.inserted_id
+
+        except PyMongoError as e:
+            logger.error(f"Failed to save raw asteroid: {e}")
+            raise
+
+    def get_raw_asteroids_by_date(self, date: str) -> list[dict]:
+        # fetch all raw asteroids for a given date
+        if self.db is None:
+            raise RuntimeError("Database not initialized")
+
+        try:
+            collection = self.db["asteroids_raw"]
+            cursor = collection.find({"date": date})
+            return list(cursor)
+
+        except PyMongoError as e:
+            logger.error(f"Failed to fetch raw asteroids for date {date}: {e}")
             raise
 
     def close(self):
