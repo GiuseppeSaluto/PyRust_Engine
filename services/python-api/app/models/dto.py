@@ -10,36 +10,60 @@ class AsteroidDTO:
     miss_distance_km: float
     is_potentially_hazardous: bool
     orbiting_body: str
-    
+
     def __init__(self, raw_doc: dict) -> None:
         if not raw_doc:
             raise ValueError("Raw document for AsteroidDTO cannot be None or empty.")
-        self.id = raw_doc.get("id", "")
-        self.name = raw_doc.get("name", "")
-        self.absolute_magnitude_h = raw_doc.get("absolute_magnitude_h", 0.0)
-        
-        diameter_info = raw_doc.get("estimated_diameter", {}).get("kilometers", {})
-        self.diameter_min_km = diameter_info.get("estimated_diameter_min", 0.0)
-        self.diameter_max_km = diameter_info.get("estimated_diameter_max", 0.0)
-        self.diameter_avg_km = (self.diameter_min_km + self.diameter_max_km) / 2
-        
-        close_approach_data = raw_doc.get("close_approach_data", [])
-        if close_approach_data:
-            first_approach = close_approach_data[0]
-            self.close_approach_date = first_approach.get("close_approach_date", "")
-            relative_velocity_info = first_approach.get("relative_velocity", {})
-            self.relative_velocity_kps = float(relative_velocity_info.get("kilometers_per_second", 0.0))
-            miss_distance_info = first_approach.get("miss_distance", {})
-            self.miss_distance_km = float(miss_distance_info.get("kilometers", 0.0))
-            self.orbiting_body = first_approach.get("orbiting_body", "")
+
+        raw = raw_doc.get("asteroid", {})
+        if not raw:
+            raise ValueError("Document missing 'asteroid' data.")
+
+        # Prefer the official NASA identifier
+        self.id = raw.get("neo_reference_id", raw.get("id", ""))
+        self.name = raw.get("name", "")
+        self.absolute_magnitude_h = float(raw.get("absolute_magnitude_h", 0.0))
+
+        diam_km = raw.get("estimated_diameter", {}).get("kilometers", {})
+        self.diameter_min_km = float(diam_km.get("estimated_diameter_min", 0.0))
+        self.diameter_max_km = float(diam_km.get("estimated_diameter_max", 0.0))
+        self.diameter_avg_km = (
+            self.diameter_min_km + self.diameter_max_km
+        ) / 2 if (self.diameter_min_km and self.diameter_max_km) else 0.0
+
+        ca_list = raw.get("close_approach_data", [])
+        if ca_list:
+            ca = ca_list[0]
+            self.close_approach_date = ca.get("close_approach_date", "")
+
+            rel_vel = ca.get("relative_velocity", {})
+            self.relative_velocity_kps = self._safe_float(
+                rel_vel.get("kilometers_per_second", 0.0)
+            )
+
+            miss_dist = ca.get("miss_distance", {})
+            self.miss_distance_km = self._safe_float(
+                miss_dist.get("kilometers", 0.0)
+            )
+
+            self.orbiting_body = ca.get("orbiting_body", "")
         else:
             self.close_approach_date = ""
             self.relative_velocity_kps = 0.0
             self.miss_distance_km = 0.0
             self.orbiting_body = ""
-        
-        self.is_potentially_hazardous = raw_doc.get("is_potentially_hazardous_asteroid", False)
-        
+
+        self.is_potentially_hazardous = raw.get(
+            "is_potentially_hazardous_asteroid", False
+        )
+
+    @staticmethod
+    def _safe_float(value) -> float:
+        try:
+            return float(value)
+        except Exception:
+            return 0.0
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,

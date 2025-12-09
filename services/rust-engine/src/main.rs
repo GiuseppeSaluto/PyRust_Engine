@@ -1,1 +1,5 @@
-// HTTP microservice (Axum/Actix)
+mod dto;
+
+fn main() {
+    println!("Rust engine starting...");
+}
