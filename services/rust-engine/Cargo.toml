@@ -20,5 +20,8 @@ log = "0.4"
 anyhow = "1.0"
 thiserror = "2.0"
 
+# Async Runtime
+tokio = { version = "1", features = ["full"] }
+
 [dev-dependencies]
 actix-test = "0.1"
