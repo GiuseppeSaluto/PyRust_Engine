@@ -15,10 +15,8 @@ class MongoDBClient:
 
         self.client: MongoClient | None = None
         self.db: Database | None = None
-
-    # -------------------------------------------------------------------------
-    # Flask integration
-    # -------------------------------------------------------------------------
+        
+    # Flask
     def init_app(self, app):
 
         try:
@@ -36,10 +34,8 @@ class MongoDBClient:
         except PyMongoError as e:
             logger.critical(f"Failed to initialize MongoDB: {e}")
             raise
-
-    # -------------------------------------------------------------------------
-    # Database Validation
-    # -------------------------------------------------------------------------
+        
+    # DB
     def _ensure_collections(self):
 
         if self.db is None:
@@ -96,9 +92,7 @@ class MongoDBClient:
 
         logger.debug("Initialized indexes for 'asteroids_raw'")
 
-    # -------------------------------------------------------------------------
-    # CRUD Operations
-    # -------------------------------------------------------------------------
+    # CRUD
     def save_nasa_feed(self, feed: dict):
         
         if self.db is None:
