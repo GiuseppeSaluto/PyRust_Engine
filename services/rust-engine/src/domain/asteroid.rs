@@ -1,4 +1,4 @@
-use crate::dto::asteroid_dto::AsteroidDTO;
+use crate::{domain::error::DomainError, dto::asteroid_dto::AsteroidDTO};
 
 #[derive(Debug, Clone)]
 pub struct Asteroid {
@@ -14,29 +14,23 @@ pub struct Asteroid {
 }
 
 impl TryFrom<AsteroidDTO> for Asteroid {
-    type Error = String;
+    type Error = DomainError;
 
     fn try_from(dto: AsteroidDTO) -> Result<Self, Self::Error> {
         if dto.id.trim().is_empty() {
-            return Err("AsteroidDTO id is empty".into());
+            return Err(DomainError::InvalidId);
         }
 
         if dto.diameter_avg_km <= 0.0 {
-            return Err(format!("Invalid diameter: {} km", dto.diameter_avg_km));
+            return Err(DomainError::InvalidDiameter(dto.diameter_avg_km));
         }
 
         if dto.relative_velocity_kps < 0.0 {
-            return Err(format!(
-                "Velocity cannot be negative: {}",
-                dto.relative_velocity_kps
-            ));
+            return Err(DomainError::InvalidVelocity(dto.relative_velocity_kps));
         }
 
         if dto.miss_distance_km < 0.0 {
-            return Err(format!(
-                "Distance cannot be negative: {}",
-                dto.miss_distance_km
-            ));
+            return Err(DomainError::InvalidField("miss_distance_km"));
         }
 
         Ok(Asteroid {
@@ -50,5 +44,40 @@ impl TryFrom<AsteroidDTO> for Asteroid {
             date: dto.close_approach_date,
             orbiting_body: dto.orbiting_body,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::error::DomainError;
+    use crate::dto::asteroid_dto::AsteroidDTO;
+
+    #[test]
+    fn asteroid_with_negative_diameter_is_rejected() {
+        let dto = AsteroidDTO {
+            id: "12345".to_string(),
+            name: "Test Asteroid".to_string(),
+            absolute_magnitude_h: 20.0,
+            diameter_min_km: -1.0,
+            diameter_max_km: 0.5,
+            diameter_avg_km: -0.25,
+            close_approach_date: "2025-01-01".to_string(),
+            relative_velocity_kps: 10.0,
+            miss_distance_km: 100_000.0,
+            orbiting_body: "Earth".to_string(),
+            is_potentially_hazardous: false,
+        };
+
+        let result = Asteroid::try_from(dto);
+
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            DomainError::InvalidDiameter(value) => {
+                assert!(value < 0.0);
+            }
+            other => panic!("Unexpected error returned: {:?}", other),
+        }
     }
 }

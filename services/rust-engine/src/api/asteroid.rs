@@ -21,7 +21,7 @@ pub async fn process_asteroid(Json(dto): Json<AsteroidDTO>) -> impl IntoResponse
         }
     };
 
-    let volume_m3 = ImpactPhysics::volume_from_diameter_km(asteroid_domain.diameter_km);
+    let volume_m3 = ImpactPhysics::volume_from_diameter_km(asteroid_domain.diameter_km);  
     let mass = ImpactPhysics::mass_from_volume(volume_m3, crate::logic::impact_energy::AsteroidDensity::SType);
     let energy_joules = ImpactPhysics::kinetic_energy_joules(mass, asteroid_domain.velocity_kps);
     let energy_megatons = ImpactPhysics::joules_to_megatons(energy_joules);
