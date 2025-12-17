@@ -2,6 +2,7 @@ from flask import current_app
 from requests.exceptions import RequestException
 
 from app.core.dto_mapper import map_mongo_document_to_asteroid
+from app.core.mongodb import MongoDBClient
 from app.core.rust_client import process_asteroid_with_rust
 from app.utils.logger import logger
 
@@ -10,7 +11,7 @@ class AnalysisPipeline:
       
     @staticmethod
     def analyze_unprocessed_asteroids(limit: int = 100) -> dict:
-        mongo = current_app.extensions.get("mongo")
+        mongo: MongoDBClient | None = current_app.extensions.get("mongo")
         if not mongo:
             raise RuntimeError("MongoDB extension not initialized")
         
@@ -75,7 +76,7 @@ class AnalysisPipeline:
     @staticmethod
     def analyze_single_asteroid(asteroid_id: str) -> dict:
         
-        mongo = current_app.extensions.get("mongo")
+        mongo: MongoDBClient | None = current_app.extensions.get("mongo")
         if not mongo:
             raise RuntimeError("MongoDB extension not initialized")
         
