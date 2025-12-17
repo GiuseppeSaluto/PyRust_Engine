@@ -2,13 +2,12 @@ from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
 from flask import current_app
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.utils.logger import logger
 
 
 class MongoDBClient:
-
     def __init__(self, uri: str, db_name: str):
         self.uri = uri
         self.db_name = db_name
@@ -117,9 +116,9 @@ class MongoDBClient:
             collection = self.db["asteroids_raw"]
 
             document = {
-                "date": date,  # string: "2025-12-02"
+                "date": date,
                 "asteroid": asteroid,
-                "stored_at": datetime.utcnow(),
+                "stored_at": datetime.now(timezone.utc),
             }
 
             result = collection.insert_one(document)
@@ -145,8 +144,73 @@ class MongoDBClient:
             logger.error(f"Failed to fetch raw asteroids for date {date}: {e}")
             raise
 
-    def close(self):
-        
+    def close(self):       
         if self.client:
             self.client.close()
             logger.info("MongoDB connection closed")
+            
+    def get_raw_asteroid_by_id(self, asteroid_id: str) -> dict | None:
+        if self.db is None:
+            raise RuntimeError("Database not initialized")
+
+        try:
+            collection = self.db["asteroids_raw"]
+            return collection.find_one({"asteroid.id": asteroid_id})
+        except PyMongoError as e:
+            logger.error(f"Failed to fetch asteroid {asteroid_id}: {e}")
+            raise
+
+
+    def get_unprocessed_asteroids(self, limit: int = 100) -> list[dict]:
+        if self.db is None:
+            raise RuntimeError("Database not initialized")
+
+        try:
+            collection = self.db["asteroids_raw"]
+            analyses_collection = self.db["asteroid_analyses"]
+            
+            analyzed_ids = set(
+                doc["neo_reference_id"] 
+                for doc in analyses_collection.find({}, {"neo_reference_id": 1})
+            )
+            
+            unprocessed = []
+            cursor = collection.find({})
+            
+            for doc in cursor:
+                asteroid_data = doc.get("asteroid", {})
+                asteroid_id = asteroid_data.get("id")
+                
+                if asteroid_id and asteroid_id not in analyzed_ids:
+                    unprocessed.append(doc)
+                    
+                if len(unprocessed) >= limit:
+                    break
+            
+            logger.info(f"Found {len(unprocessed)} unprocessed asteroids")
+            return unprocessed
+
+        except PyMongoError as e:
+            logger.error(f"Failed to fetch unprocessed asteroids: {e}")
+            raise
+
+    def save_analysis_result(self, asteroid_id: str, risk_result: dict) -> str:
+        if self.db is None:
+            raise RuntimeError("Database not initialized")
+
+        try:
+            collection = self.db["asteroid_analyses"]
+            
+            document = {
+                "neo_reference_id": asteroid_id,
+                "analysis_timestamp": datetime.now(timezone.utc),
+                "risk_data": risk_result,
+            }
+            
+            result = collection.insert_one(document)
+            logger.info(f"Saved analysis for asteroid {asteroid_id}")
+            return str(result.inserted_id)
+
+        except PyMongoError as e:
+            logger.error(f"Failed to save analysis result: {e}")
+            raise

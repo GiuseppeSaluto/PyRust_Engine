@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from requests.exceptions import RequestException
 
-from app.core.rust_client import process_data_with_rust_engine
+from app.core.rust_client import process_asteroid_with_rust
 from app.utils.logger import logger
 
 analysis_bp = Blueprint("analysis", __name__, url_prefix="/analysis")
@@ -26,7 +26,7 @@ def analyze_asteroid_feed():
     logger.info("Sending NASA NEO feed data to Rust Engine for analysis")
 
     try:
-        rust_result = process_data_with_rust_engine(
+        rust_result = process_asteroid_with_rust(
             data=nasa_data,
             endpoint="/analysis/asteroids/feed"
         )
