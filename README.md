@@ -1,13 +1,9 @@
 # AstroForge
-
 AstroForge is a backend-focused system designed to ingest real NASA data, process it through a high-performance Rust computation engine, and expose the results through a clean Python API and a minimal Streamlit dashboard.
 
 This project follows a backend-first philosophy and aims to build a complete Level 1 foundation before expanding to more advanced features.
 
----
-
 ## Overview
-
 AstroForge consists of three main services:
 
 1. **Python API (Flask)**  
@@ -21,10 +17,7 @@ AstroForge consists of three main services:
 
 An infrastructure layer using Docker Compose ties everything together.
 
----
-
 ## Project Goals (Level 1 Scope)
-
 - Fetch and normalize NASA NEOWS and APOD data.
 - Send normalized data to the Rust computation engine.
 - Return computed metrics to the Python API.
@@ -32,179 +25,152 @@ An infrastructure layer using Docker Compose ties everything together.
 - Keep the structure minimal until real code justifies expansion.
 - Produce a complete, finished, and maintainable baseline system.
 
----
-
 ## Architecture
-
 ### Python API (Flask)
-Responsible for:
-- Fetching NASA data
-- Normalizing inputs
-- Calling the Rust engine
-- Exposing REST endpoints
-- Producing log output
+Orchestrates data ingestion, MongoDB persistence, and Rust engine integration.
 
-Directory structure:
+**Responsibilities:**
+- NASA NEO data retrieval and normalization
+- MongoDB operations (raw asteroids, analysis results)
+- Rust engine communication
+- RESTful API endpoints
+- Structured logging
 
-```
-services/python-api/app/
-├── routes/
-├── core/
-├── models/
-├── utils/
-└── storage/
-```
+**Key modules:**
+- `core/` — NASA client, Rust client, MongoDB, configuration, pipeline orchestration
+- `routes/` — NASA endpoints, analysis orchestration
+- `models/` — Domain models (Asteroid, Orbit, AnalysisResult)
+- `utils/` — Logging, validation
 
 ---
 
 ### Rust Engine
-Responsible for:
-- Heavy numerical computations
-- Simplified orbital math
+High-performance computation service for asteroid risk analysis.
+
+**Responsibilities:**
 - Impact energy calculations
-- Risk scoring
+- Risk scoring algorithms
+- Domain validation
+- HTTP API (Axum)
 
-Level 1 structure:
-
-```
-services/rust-engine/src/
-├── main.rs
-├── logic/
-│   ├── orbit_math.rs
-│   └── impact_energy.rs
-└── domain/
-    ├── asteroid.rs
-    ├── orbit.rs
-    └── risk.rs
-```
-
-Additional modules (api/, dto/, utils/) will be added only when required.
-
----
+**Key modules:**
+- `domain/` — Asteroid, RiskResult, error types
+- `logic/` — Impact physics, orbital calculations
+- `dto/` — Data transfer objects with validation
+- `api/` — HTTP endpoints
 
 ### Dashboard (Streamlit)
-Provides:
-- A simple interface for NASA data
-- Analysis results from Rust
-- Log visualization
+Minimal UI for data visualization and system monitoring.
 
-Current structure:
-
-```
-services/dashboard/streamlit_app/
-├── Main.py
-└── utils/
-    └── api_client.py
-```
-
-Additional pages may be introduced in later levels.
-
----
+**Status:** Planned (not yet implemented)
 
 ## Project Structure
-
-```
-project-root/
-├── services/
-│   ├── python-api/         # Main Python API (Flask)
-│   │   ├── app/
-│   │   │   ├── routes/     # NASA, Analysis, Logs
-│   │   │   ├── core/       # NASA client, Rust client, Config
-│   │   │   ├── models/     # Asteroid, Orbit, Analysis Result
-│   │   │   ├── utils/      # Logger, Validators
-│   │   │   ├── storage/    # Log files
-│   │   │   └── main.py     # Flask app
-│   │   ├── requirements.txt
-│   │   └── Dockerfile
-│   │
-│   ├── rust-engine/        # Rust calculation engine
-│   │   ├── src/
-│   │   │   ├── domain/     # Asteroid, Orbit, Risk
-│   │   │   ├── logic/      # Orbit math, Impact energy
-│   │   │   └── main.rs     # Server setup
-│   │   ├── Cargo.toml
-│   │   └── Dockerfile
-│   │
-│   └── dashboard/          # Streamlit Dashboard
-│       ├── streamlit_app/
-│       │   ├── Main.py     # Main dashboard page
-│       │   └── utils/      # Helper functions
-│       ├── requirements.txt
-│       └── Dockerfile
+services/
+├── python-api/
+│   ├── app/
+│   │   ├── core/          # Pipeline, clients, configuration
+│   │   ├── routes/        # API endpoints
+│   │   ├── models/        # Domain models
+│   │   └── utils/         # Logger, validators
+│   ├── requirements.txt
+│   └── Dockerfile
 │
-├── infra/
-│   ├── docker-compose.yml
-│   ├── scripts/            # start_dev.sh, rebuild.sh
-│   └── env/                # Environment variables per service
+├── rust-engine/
+│   ├── src/
+│   │   ├── domain/        # Core business logic
+│   │   ├── logic/         # Physics calculations
+│   │   ├── dto/           # API contracts
+│   │   └── api/           # HTTP handlers
+│   ├── Cargo.toml
+│   └── Dockerfile
 │
-└── docs/
-    ├── architecture.md
-    ├── roadmap-levels.md
-    ├── api-spec-python.md
-    ├── api-spec-rust.md
-    └── data-flows.md
-```
+└── dashboard/
+    ├── streamlit_app/
+    └── requirements.txt
 
----
-
-## Infrastructure
-
-The infrastructure layer manages service orchestration and local development consistency.
-
-Directory structure:
-
-```
 infra/
 ├── docker-compose.yml
 ├── scripts/
 └── env/
-```
 
-- `docker-compose.yml`: multi-service orchestration  
-- `env/`: environment variables per service  
-- `scripts/`: development helpers (rebuild, start, etc.)
+docs/
+├── architecture.md
+├── roadmap-levels.md
+├── api-spec-python.md
+└── api-spec-rust.md
+```
 
 ---
 
-## Documentation
+## Data Flow
 
-The `docs/` directory contains:
-- `architecture.md` — high-level system overview  
-- `roadmap-levels.md` — multi-phase project plan  
-- `api-spec-python.md` — Python API definitions  
-- `api-spec-rust.md` — Rust engine interface  
-- `data-flows.md` — ingestion and analysis flows  
+```
+NASA API → Python API → MongoDB (asteroids_raw)
+                ↓
+        Pipeline Orchestrator
+                ↓
+          Rust Engine (risk analysis)
+                ↓
+        MongoDB (asteroid_analyses)
+```
 
-Documentation will expand as the codebase grows.
+---
+
+## API Endpoints
+
+### Python API (Port 5001)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/nasa/neo/feed` | GET | Fetch NASA NEO data |
+| `/nasa/neo/save` | POST | Persist NASA data to MongoDB |
+| `/pipeline/neo/analyze` | POST | Analyze unprocessed asteroids |
+| `/pipeline/neo/analyze/<id>` | POST | Analyze single asteroid |
+| `/pipeline/status` | GET | System health check |
+
+### Rust Engine (Port 8080)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/process/asteroid` | POST | Process asteroid risk analysis |
+
+---
+
+## Technology Stack
+
+- **Python 3.x** — Flask, PyMongo, Requests
+- **Rust** — Axum, Tokio, Serde
+- **MongoDB** — Document storage
+- **Docker** — Containerization
+- **Streamlit** — Dashboard (planned)
 
 ---
 
 ## Development Philosophy
 
-AstroForge follows these principles:
-
-- Backend-first development  
-- Minimalism at early stages  
-- Complexity added only when needed  
-- Clear separation between services  
-- Maintainability and readability over speed  
-- Step-by-step growth toward higher levels  
-
-No folder or module should be added without a concrete functional reason.
+- Backend-first development
+- Minimal structure, grow organically
+- Clear service boundaries
+- Maintainability over premature optimization
+- Environment-based configuration (12-factor)
 
 ---
 
 ## Current Status
 
-- All high-level directories created  
-- Base scaffolding for each service in place  
-- No implementation added yet  
-- Level 1 begins with NASA ingestion and Rust analysis  
+See `PROJECT_STATUS.md` for detailed implementation status and next steps.
 
-Progress and next steps are documented in `PROJECT_STATUS.md`.
+**Operational:**
+- Python API with NASA integration
+- Rust computation engine
+- MongoDB persistence
+- End-to-end analysis pipeline
+
+**Pending:**
+- Streamlit dashboard
+- Docker Compose deployment
+- Production configuration
 
 ---
-
 ## License
-
-This project currently has no license. A license will be added once the first stable version is complete.
+This project currently has no license.
