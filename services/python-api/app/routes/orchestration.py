@@ -140,3 +140,51 @@ def pipeline_status():
     except Exception as e:
         logger.error(f"Pipeline status check failed: {e}")
         return jsonify({"status": "unhealthy", "error": str(e)}), 503
+
+@orchestration_bp.route("/stats", methods=["GET"])
+def pipeline_stats():
+    from flask import current_app
+    from datetime import datetime, timezone
+
+    logger.info("Received request: GET /pipeline/stats")
+
+    mongo = current_app.extensions.get("mongo")
+    if not mongo:
+        return jsonify({"status": "error", "reason": "MongoDB not initialized"}), 500
+
+    try:
+        raw_collection = mongo.db["asteroids_raw"]
+        analysis_collection = mongo.db["asteroid_analyses"]
+
+        unprocessed_count = raw_collection.count_documents({})
+
+        analyzed_today = analysis_collection.count_documents({
+            "analysis_timestamp": {
+                "$gte": datetime.now(timezone.utc).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+            }
+        })
+
+        high_risk_count = analysis_collection.count_documents({
+            "risk_data.risk_level": {"$in": ["High", "Critical"]}
+        })
+
+        last_run = analysis_collection.find_one(
+            sort=[("analysis_timestamp", -1)]
+        )
+
+        return jsonify({
+            "status": "ok",
+            "unprocessed": unprocessed_count,
+            "analyzed_today": analyzed_today,
+            "high_risks": high_risk_count,
+            "last_pipeline_run": (
+                last_run["analysis_timestamp"].isoformat()
+                if last_run else None
+            ),
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to compute pipeline stats: {e}")
+        return jsonify({"status": "error", "details": str(e)}), 500

@@ -1,5 +1,6 @@
-from textual.app import App, ComposeResult
+from textual.app import App
 from textual.binding import Binding
+from app.scheduler import PipelineScheduler
 
 from app.screens.home import HomeScreen
 
@@ -16,7 +17,10 @@ class AstroForgeDashboard(App):
     ]
 
     def on_mount(self) -> None:
-        """Called when the app starts."""
+        
+        scheduler =  PipelineScheduler(interval_seconds=600)
+        scheduler.run_background()
+        
         self.push_screen(HomeScreen())
         
 if __name__ == "__main__":
