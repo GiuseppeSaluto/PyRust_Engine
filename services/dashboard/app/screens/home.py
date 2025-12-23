@@ -49,17 +49,21 @@ class HomeScreen(Screen):
         status = get_system_status()
 
         backend = status.get("backend", {})
-        rust = status.get("rust_engine", {})
 
-        backend_ok = backend.get("status") == "ok"
-        rust_ok = rust.get("status") == "ok"
+        backend_status = backend.get("status", "unknown")
+        mongodb_status = backend.get("components", {}).get("mongodb", "unknown")
+        rust_engine_status = backend.get("components", {}).get("rust_engine", "unknown")
+
+        backend_ok = backend_status == "healthy"
+        mongodb_ok = mongodb_status == "connected"
+        rust_ok = rust_engine_status == "reachable"
 
         self.query_one("#status").update(
             f"Backend: {'Connected' if backend_ok else 'Unavailable'}"
         )
 
         self.query_one("#mongodb_status").update(
-            f"MongoDB: ● {'Connected' if backend_ok else 'Disconnected'}"
+            f"MongoDB: ● {'Connected' if mongodb_ok else 'Disconnected'}"
         )
 
         self.query_one("#rust_status").update(
