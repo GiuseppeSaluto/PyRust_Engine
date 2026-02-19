@@ -12,7 +12,7 @@ Microservice system for asteroid tracking and risk analysis:
 
 1. **Python Flask API**: NASA ingestion, orchestration, MongoDB persistence
 2. **Rust Engine**: Orbital metrics, impact energy, risk scoring
-3. **Streamlit Dashboard**: Visualization of data and analysis
+3. **Textual Dashboard**: Visualization of data and analysis
 4. **Infrastructure**: Docker Compose, MongoDB
 
 ---
@@ -120,7 +120,7 @@ Database: `astroforge_db` on `localhost:27017`
 ## 6. Next Steps
 
 ### Priority 1: Dashboard
-1. Implement Streamlit UI (`Main.py`)
+1. Implement Textual UI (`Main.py`)
 2. API client for Python backend
 3. Display NASA data, analysis results, logs
 

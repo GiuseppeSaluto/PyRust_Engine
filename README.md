@@ -1,5 +1,5 @@
 # AstroForge
-AstroForge is a backend-focused system designed to ingest real NASA data, process it through a high-performance Rust computation engine, and expose the results through a clean Python API and a minimal Streamlit dashboard.
+AstroForge is a backend-focused system designed to ingest real NASA data, process it through a high-performance Rust computation engine, and expose the results through a clean Python API and a minimal Textual dashboard.
 
 This project follows a backend-first philosophy and aims to build a complete Level 1 foundation before expanding to more advanced features.
 
@@ -12,7 +12,7 @@ AstroForge consists of three main services:
 2. **Rust Engine**  
    A dedicated microservice for scientific calculations such as simplified orbital metrics, velocity estimation, impact energy, and heuristic risk scoring.
 
-3. **Dashboard (Streamlit)**  
+3. **Dashboard (Textual)**  
    A minimal UI for viewing NASA data, analysis results, and system logs.
 
 An infrastructure layer using Docker Compose ties everything together.
@@ -21,7 +21,7 @@ An infrastructure layer using Docker Compose ties everything together.
 - Fetch and normalize NASA NEOWS and APOD data.
 - Send normalized data to the Rust computation engine.
 - Return computed metrics to the Python API.
-- Display data, analysis, and logs via the Streamlit dashboard.
+- Display data, analysis, and logs via the Textual dashboard.
 - Keep the structure minimal until real code justifies expansion.
 - Produce a complete, finished, and maintainable baseline system.
 
@@ -59,7 +59,7 @@ High-performance computation service for asteroid risk analysis.
 - `dto/` — Data transfer objects with validation
 - `api/` — HTTP endpoints
 
-### Dashboard (Streamlit)
+### Dashboard (Textual)
 Minimal UI for data visualization and system monitoring.
 
 **Status:** Planned (not yet implemented)
@@ -85,7 +85,7 @@ services/
 │   └── Dockerfile
 │
 └── dashboard/
-    ├── streamlit_app/
+    ├── Textual/
     └── requirements.txt
 
 infra/
@@ -142,7 +142,7 @@ NASA API → Python API → MongoDB (asteroids_raw)
 - **Rust** — Axum, Tokio, Serde
 - **MongoDB** — Document storage
 - **Docker** — Containerization
-- **Streamlit** — Dashboard (planned)
+- **Textual** — Dashboard (planned)
 
 ---
 
@@ -167,7 +167,7 @@ See `PROJECT_STATUS.md` for detailed implementation status and next steps.
 - End-to-end analysis pipeline
 
 **Pending:**
-- Streamlit dashboard
+- Textual dashboard
 - Docker Compose deployment
 - Production configuration
 
