@@ -128,7 +128,9 @@ class HomeScreen(Screen):
         """Refresh system status and pipeline stats."""
         try:
             # Get system status
-            status = await self.run_in_thread(get_system_status)
+            status_worker = self.run_worker(get_system_status, thread=True)
+            await status_worker.wait()
+            status = status_worker.result
             backend = status.get("backend", {})
             rust = status.get("rust_engine", {})
 
@@ -149,7 +151,9 @@ class HomeScreen(Screen):
 
             # Get pipeline stats if backend is healthy
             if backend_ok:
-                stats = await self.run_in_thread(get_pipeline_stats)
+                stats_worker = self.run_worker(get_pipeline_stats, thread=True)
+                await stats_worker.wait()
+                stats = stats_worker.result
                 if stats.get("status") != "error":
                     unprocessed = stats.get("unprocessed", 0)
                     analyzed_today = stats.get("analyzed_today", 0)
@@ -190,12 +194,15 @@ class HomeScreen(Screen):
             button.label = "⟳ Running..."
             button.disabled = True
             
-            result = await self.run_in_thread(lambda: run_pipeline(limit=100))
+            worker = self.run_worker(lambda: run_pipeline(limit=100), thread=True)
+            await worker.wait()
+            result = worker.result
             
             if "error" not in result:
                 stats = result.get("statistics", {})
                 button.label = f"✓ {stats.get('processed', 0)} processed"
-                await self.run_in_thread(self.refresh_all_data)
+                refresh_worker = self.run_worker(self.refresh_all_data)
+                await refresh_worker.wait()
             else:
                 button.label = "✗ Pipeline failed"
             

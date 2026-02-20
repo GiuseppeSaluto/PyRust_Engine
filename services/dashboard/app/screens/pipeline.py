@@ -90,7 +90,9 @@ class PipelineScreen(Screen):
     async def refresh_stats(self) -> None:
         """Refresh pipeline statistics."""
         try:
-            stats = await self.run_in_thread(get_pipeline_stats)
+            worker = self.run_worker(get_pipeline_stats, thread=True)
+            await worker.wait()
+            stats = worker.result
             
             if stats.get("status") != "error":
                 unprocessed = stats.get("unprocessed", 0)
@@ -142,7 +144,9 @@ class PipelineScreen(Screen):
         status_widget.update("Status: [yellow]Pipeline running...[/yellow]")
 
         try:
-            result = await self.run_in_thread(lambda: run_pipeline(limit=100))
+            worker = self.run_worker(lambda: run_pipeline(limit=100), thread=True)
+            await worker.wait()
+            result = worker.result
 
             if "error" not in result:
                 stats = result.get("statistics", {})
@@ -155,7 +159,8 @@ class PipelineScreen(Screen):
                 status_widget.update(f"Status: [green]{msg}[/green]")
                 
                 # Refresh stats after pipeline
-                await self.run_in_thread(self.refresh_stats)
+                refresh_worker = self.run_worker(self.refresh_stats)
+                await refresh_worker.wait()
             else:
                 error_msg = result.get("error", "Unknown error")
                 button.label = f"✗ Failed: {error_msg[:30]}"

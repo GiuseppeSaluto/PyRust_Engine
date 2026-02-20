@@ -79,7 +79,9 @@ class AsteroidsScreen(Screen):
         self.table.clear()
         
         try:
-            asteroids = await self.run_in_thread(lambda: get_analyzed_asteroids(limit=200))
+            worker = self.run_worker(lambda: get_analyzed_asteroids(limit=200), thread=True)
+            await worker.wait()
+            asteroids = worker.result
 
             if not asteroids:
                 self.table.add_row("No data", "--", "--", "--", "--", "--", "--", "--")

@@ -74,7 +74,9 @@ class LogsScreen(Screen):
         self.log_display.clear()
         
         try:
-            logs = await self.run_in_thread(lambda: get_logs(limit=100))
+            worker = self.run_worker(lambda: get_logs(limit=100), thread=True)
+            await worker.wait()
+            logs = worker.result
 
             if not logs:
                 self.log_display.write("[yellow]No logs available[/yellow]")
