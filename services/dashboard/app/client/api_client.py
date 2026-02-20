@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:5001")
 RUST_ENGINE_URL = os.getenv("RUST_ENGINE_URL", "http://localhost:8080")
 
-DEFAULT_TIMEOUT = 5
-REQUEST_TIMEOUT = 10
+DEFAULT_TIMEOUT = 15
+REQUEST_TIMEOUT = 20
 
 def _create_session_with_retries() -> requests.Session:
     """Create a requests session with retry strategy."""

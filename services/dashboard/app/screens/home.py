@@ -3,8 +3,12 @@ from textual.widgets import Static, Button, Label
 from textual.containers import Vertical, Horizontal, Container
 from textual import work
 from datetime import datetime
+import asyncio
+import logging
 
 from app.client.api_client import get_system_status, get_pipeline_stats, run_pipeline
+
+logger = logging.getLogger(__name__)
 
 
 class StatusBadge(Static):
@@ -128,9 +132,8 @@ class HomeScreen(Screen):
         """Refresh system status and pipeline stats."""
         try:
             # Get system status
-            status_worker = self.run_worker(get_system_status, thread=True)
-            await status_worker.wait()
-            status = status_worker.result
+            loop = asyncio.get_event_loop()
+            status = await loop.run_in_executor(None, get_system_status)
             backend = status.get("backend", {})
             rust = status.get("rust_engine", {})
 
@@ -151,9 +154,7 @@ class HomeScreen(Screen):
 
             # Get pipeline stats if backend is healthy
             if backend_ok:
-                stats_worker = self.run_worker(get_pipeline_stats, thread=True)
-                await stats_worker.wait()
-                stats = stats_worker.result
+                stats = await loop.run_in_executor(None, get_pipeline_stats)
                 if stats.get("status") != "error":
                     unprocessed = stats.get("unprocessed", 0)
                     analyzed_today = stats.get("analyzed_today", 0)
@@ -194,15 +195,15 @@ class HomeScreen(Screen):
             button.label = "⟳ Running..."
             button.disabled = True
             
-            worker = self.run_worker(lambda: run_pipeline(limit=100), thread=True)
-            await worker.wait()
-            result = worker.result
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, lambda: run_pipeline(limit=100))
             
-            if "error" not in result:
+            if result.get("status") == "success":
                 stats = result.get("statistics", {})
-                button.label = f"✓ {stats.get('processed', 0)} processed"
-                refresh_worker = self.run_worker(self.refresh_all_data)
-                await refresh_worker.wait()
+                processed = stats.get("processed", 0)
+                button.label = f"✓ {processed} processed"
+                # Refresh data after pipeline completes
+                self.refresh_all_data()
             else:
                 button.label = "✗ Pipeline failed"
             
@@ -210,6 +211,7 @@ class HomeScreen(Screen):
             self.set_timer(3, lambda: self._reset_button(button, original_label))
             
         except Exception as e:
+            logger.error(f"Pipeline execution error: {e}", exc_info=True)
             button.label = f"✗ Error: {str(e)[:20]}"
             self.set_timer(3, lambda: self._reset_button(button, original_label))
 

@@ -39,3 +39,24 @@ def process_asteroid_with_rust(asteroid_dto: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     return result
+
+
+def check_rust_health() -> str:
+    """Check if Rust engine is reachable and healthy."""
+    if not RUST_ENGINE_URL:
+        return "unconfigured"
+    
+    try:
+        # Try to reach the Rust engine health endpoint
+        response = requests.get(
+            f"{RUST_ENGINE_URL}/api/health",
+            timeout=5
+        )
+        if response.status_code == 200:
+            return "ok"
+        else:
+            logger.warning(f"Rust Engine returned status {response.status_code}")
+            return "unhealthy"
+    except requests.RequestException as e:
+        logger.warning(f"Rust Engine health check failed: {e}")
+        return "unreachable"

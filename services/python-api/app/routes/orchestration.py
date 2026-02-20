@@ -3,6 +3,7 @@ from requests.exceptions import RequestException
 from flask import current_app
 from datetime import datetime, timezone
 from app.core.pipeline import AnalysisPipeline
+from app.core.rust_client import check_rust_health
 from app.utils.logger import logger
 
 orchestration_bp = Blueprint("orchestration", __name__, url_prefix="/pipeline")
@@ -124,6 +125,9 @@ def pipeline_status():
             )
 
         mongo.get_unprocessed_asteroids(limit=1)
+        
+        # Check Rust Engine health
+        rust_status = check_rust_health()
 
         return (
             jsonify(
@@ -131,7 +135,7 @@ def pipeline_status():
                     "status": "healthy",
                     "components": {
                         "mongodb": "connected",
-                        "rust_engine": "unknown",
+                        "rust_engine": rust_status,
                     },
                 }
             ),
