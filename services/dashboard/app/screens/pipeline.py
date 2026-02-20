@@ -2,66 +2,174 @@ from textual.screen import Screen
 from textual.widgets import Static, Button
 from textual.containers import Vertical, Horizontal
 from textual import work
+from datetime import datetime
 
-from app.client.api_client import run_pipeline, get_system_status
+from app.client.api_client import run_pipeline, get_pipeline_stats
+
 
 class PipelineScreen(Screen):
+    """Pipeline control and monitoring screen."""
+
+    CSS = """
+    PipelineScreen {
+        layout: vertical;
+    }
+
+    #title {
+        dock: top;
+        height: 2;
+        content-align: center middle;
+        text-style: bold;
+        color: $primary;
+        background: $boost;
+    }
+
+    #stats_container {
+        border: solid $accent;
+        margin: 1 2;
+        padding: 0 1;
+    }
+
+    .stat-line {
+        margin: 0;
+        height: 1;
+    }
+
+    #actions {
+        height: auto;
+        margin: 1 2;
+    }
+
+    Button {
+        margin: 0 1;
+    }
+
+    #footer {
+        dock: bottom;
+        height: 1;
+        color: $text-muted;
+    }
+    """
 
     def compose(self):
+        """Compose pipeline screen layout."""
         yield Static("PIPELINE CONTROL", id="title")
 
-        with Vertical(id="stats"):
-            yield Static("Unprocessed: --", id="unprocessed")
-            yield Static("Analyzed today: --", id="analyzed_today")
-            yield Static("High / Critical risks: --", id="high_risks")
-            yield Static("Last run: --", id="last_run")
+        with Vertical(id="stats_container"):
+            yield Static("Unprocessed asteroids: Loading...", classes="stat-line", id="unprocessed")
+            yield Static("Analyzed today: Loading...", classes="stat-line", id="analyzed_today")
+            yield Static("High/Critical risks: Loading...", classes="stat-line", id="high_risks")
+            yield Static("Last run: --", classes="stat-line", id="last_run")
+            yield Static("Status: --", classes="stat-line", id="run_status")
 
         with Horizontal(id="actions"):
-            yield Button("Run Pipeline", id="run_pipeline")
-            yield Button("Back", id="back")
+            yield Button("▶ Run Now", id="run_pipeline", variant="primary")
+            yield Button("🔄 Refresh", id="refresh_stats")
+            yield Button("⬅ Back", id="back")
 
-    def on_mount(self):
+        yield Static(
+            "Pipeline analysis takes ~30-60 seconds depending on asteroid count",
+            id="footer",
+        )
+
+    def on_mount(self) -> None:
+        """Initialize screen and start refreshing."""
         self.refresh_stats()
-        self.set_interval(20, self.refresh_stats)
+        self.set_interval(15, self.refresh_stats)
 
-    @work
-    async def refresh_stats(self):
-        status = get_system_status()
-        backend = status.get("backend", {})
-
-        if backend.get("status") != "ok":
-            self.query_one("#unprocessed").update("Backend unreachable")
-            return
-
-        stats = backend
-
-        self.query_one("#unprocessed").update(
-            f"Unprocessed: {stats.get('unprocessed', '--')}"
-        )
-        self.query_one("#analyzed_today").update(
-            f"Analyzed today: {stats.get('analyzed_today', '--')}"
-        )
-        self.query_one("#high_risks").update(
-            f"High / Critical risks: {stats.get('high_risks', '--')}"
-        )
-        self.query_one("#last_run").update(
-            f"Last run: {stats.get('last_pipeline_run', '--')}"
-        )
-
-    async def on_button_pressed(self, event: Button.Pressed):
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses."""
         if event.button.id == "run_pipeline":
-            self.run_pipeline()
-
-        elif event.button.id == "back":
-            self.app.pop_screen()
-
-    @work
-    async def run_pipeline(self):
-        self.query_one("#last_run").update("Running pipeline...")
-        result = run_pipeline(limit=100)
-
-        if "error" in result:
-            self.query_one("#last_run").update("Pipeline failed")
-        else:
-            self.query_one("#last_run").update("Pipeline completed")
+            self.run_pipeline_action()
+        elif event.button.id == "refresh_stats":
             self.refresh_stats()
+        elif event.button.id == "back":
+            self.app.action_show_home()
+
+    @work(exclusive=True)
+    async def refresh_stats(self) -> None:
+        """Refresh pipeline statistics."""
+        try:
+            stats = await self.run_in_thread(get_pipeline_stats)
+            
+            if stats.get("status") != "error":
+                unprocessed = stats.get("unprocessed", 0)
+                analyzed_today = stats.get("analyzed_today", 0)
+                high_risks = stats.get("high_risks", 0)
+                last_run = stats.get("last_pipeline_run")
+
+                self.query_one("#unprocessed").update(
+                    f"Unprocessed asteroids: [cyan]{unprocessed}[/cyan]"
+                )
+                self.query_one("#analyzed_today").update(
+                    f"Analyzed today: [cyan]{analyzed_today}[/cyan]"
+                )
+                self.query_one("#high_risks").update(
+                    f"High/Critical risks: [yellow]{high_risks}[/yellow]" if high_risks > 0 
+                    else f"High/Critical risks: [green]{high_risks}[/green]"
+                )
+                
+                if last_run:
+                    try:
+                        dt = datetime.fromisoformat(last_run.replace('Z', '+00:00'))
+                        self.query_one("#last_run").update(
+                            f"Last run: {dt.strftime('%Y-%m-%d %H:%M:%S')}"
+                        )
+                    except:
+                        self.query_one("#last_run").update(f"Last run: {last_run}")
+                else:
+                    self.query_one("#last_run").update("Last run: Never")
+
+                self.query_one("#run_status").update("Status: [green]Ready[/green]")
+            else:
+                self.query_one("#run_status").update(
+                    f"Status: [red]Error - {stats.get('error', 'Unknown')}[/red]"
+                )
+        except Exception as e:
+            self.query_one("#run_status").update(
+                f"Status: [red]Error: {str(e)[:40]}[/red]"
+            )
+
+    @work(exclusive=True)
+    async def run_pipeline_action(self) -> None:
+        """Execute pipeline run."""
+        button = self.query_one("#run_pipeline", Button)
+        status_widget = self.query_one("#run_status")
+        
+        original_label = button.label
+        button.disabled = True
+        button.label = "⟳ Running..."
+        status_widget.update("Status: [yellow]Pipeline running...[/yellow]")
+
+        try:
+            result = await self.run_in_thread(lambda: run_pipeline(limit=100))
+
+            if "error" not in result:
+                stats = result.get("statistics", {})
+                processed = stats.get("processed", 0)
+                failed = stats.get("failed", 0)
+                skipped = stats.get("skipped", 0)
+                
+                msg = f"✓ Processed: {processed}, Failed: {failed}, Skipped: {skipped}"
+                button.label = msg[:40]
+                status_widget.update(f"Status: [green]{msg}[/green]")
+                
+                # Refresh stats after pipeline
+                await self.run_in_thread(self.refresh_stats)
+            else:
+                error_msg = result.get("error", "Unknown error")
+                button.label = f"✗ Failed: {error_msg[:30]}"
+                status_widget.update(f"Status: [red]Pipeline failed[/red]")
+
+            # Reset button after 4 seconds
+            self.set_timer(4, lambda: self._reset_button(button, original_label))
+
+        except Exception as e:
+            button.label = f"✗ Error: {str(e)[:25]}"
+            status_widget.update(f"Status: [red]Exception: {str(e)[:35]}[/red]")
+            self.set_timer(4, lambda: self._reset_button(button, original_label))
+
+    def _reset_button(self, button: Button, label: str) -> None:
+        """Reset button to original state."""
+        button.label = label
+        button.disabled = False

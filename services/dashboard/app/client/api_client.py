@@ -1,95 +1,200 @@
 import os
 import requests
+import logging
 from typing import Dict, List, Any, Optional
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:5000")
+logger = logging.getLogger(__name__)
+
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:5001")
 RUST_ENGINE_URL = os.getenv("RUST_ENGINE_URL", "http://localhost:8080")
 
 DEFAULT_TIMEOUT = 5
+REQUEST_TIMEOUT = 10
 
-# ---------------------------------------------------------------------
-# Health & Status
-# ---------------------------------------------------------------------
+def _create_session_with_retries() -> requests.Session:
+    """Create a requests session with retry strategy."""
+    session = requests.Session()
+    
+    retry_strategy = Retry(
+        total=3,
+        backoff_factor=0.5,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS", "POST"]
+    )
+    
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    return session
+
+_session = _create_session_with_retries()
+
+# =====================================================================
+# HEALTH & STATUS
+# =====================================================================
+
 def get_backend_health() -> Dict[str, Any]:
+    """Check Python API health."""
     try:
-        response = requests.get(
+        response = _session.get(
             f"{API_BASE_URL}/pipeline/status",
             timeout=DEFAULT_TIMEOUT,
         )
         response.raise_for_status()
         return response.json()
-    except requests.RequestException:
-        return {"status": "unreachable"}
+    except requests.RequestException as e:
+        logger.warning(f"Backend health check failed: {e}")
+        return {"status": "unreachable", "error": str(e)}
 
 def get_rust_health() -> Dict[str, Any]:
+    """Check Rust engine health via Python API status."""
     try:
-        response = requests.get(f"{RUST_ENGINE_URL}/health", timeout=DEFAULT_TIMEOUT)
+        response = _session.get(
+            f"{API_BASE_URL}/pipeline/status",
+            timeout=DEFAULT_TIMEOUT,
+        )
         response.raise_for_status()
-        return response.json()
-    except requests.RequestException:
-        return {"status": "unreachable"}
-
+        data = response.json()
+        rust_status = data.get("components", {}).get("rust_engine", "unknown")
+        return {"status": "ok" if rust_status == "ok" else "unreachable"}
+    except requests.RequestException as e:
+        logger.warning(f"Rust health check failed: {e}")
+        return {"status": "unreachable", "error": str(e)}
 
 def get_system_status() -> Dict[str, Any]:
+    """Get overall system health status."""
+    backend = get_backend_health()
+    rust = get_rust_health()
+    
     return {
-        "backend": get_backend_health(),
-        "rust_engine": get_rust_health(),
+        "backend": backend,
+        "rust_engine": rust,
+        "timestamp": __import__("datetime").datetime.now().isoformat()
     }
 
+# =====================================================================
+# PIPELINE STATISTICS
+# =====================================================================
 
-# ---------------------------------------------------------------------
-# Actions
-# ---------------------------------------------------------------------
-def run_pipeline(limit: int = 100) -> Dict[str, Any]:
+def get_pipeline_stats() -> Dict[str, Any]:
+    """Get pipeline statistics (unprocessed, analyzed today, high risks)."""
     try:
-        response = requests.post(
-            f"{API_BASE_URL}/pipeline/neo/analyze",
-            params={"limit": limit},
-            timeout=30,
+        response = _session.get(
+            f"{API_BASE_URL}/pipeline/stats",
+            timeout=DEFAULT_TIMEOUT,
         )
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
-        return {"error": str(e)}
+        logger.error(f"Failed to get pipeline stats: {e}")
+        return {
+            "status": "error",
+            "unprocessed": 0,
+            "analyzed_today": 0,
+            "high_risks": 0,
+            "last_pipeline_run": None,
+            "error": str(e)
+        }
 
+# =====================================================================
+# ACTIONS
+# =====================================================================
 
-# ---------------------------------------------------------------------
-# Data access (future use)
-# ---------------------------------------------------------------------
-def get_asteroids(
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-) -> List[Dict[str, Any]]:
-    params = {}
-    if start_date:
-        params["start_date"] = start_date
-    if end_date:
-        params["end_date"] = end_date
-
+def run_pipeline(limit: int = 100) -> Dict[str, Any]:
+    """Trigger pipeline analysis for unprocessed asteroids."""
     try:
-        response = requests.get(
-            f"{API_BASE_URL}/nasa/neo/feed",
-            params=params,
-            timeout=10,
+        response = _session.post(
+            f"{API_BASE_URL}/pipeline/neo/analyze",
+            params={"limit": limit},
+            timeout=REQUEST_TIMEOUT,
         )
         response.raise_for_status()
-        return response.json().get("near_earth_objects", [])
-    except requests.RequestException:
-        return []
+        return response.json()
+    except requests.RequestException as e:
+        logger.error(f"Pipeline execution failed: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "statistics": {"processed": 0, "failed": 0, "skipped": 0}
+        }
 
-def get_analyzed_asteroids(limit: int = 200, sort: str = "risk", order: str = "desc"):
+# =====================================================================
+# DATA ACCESS
+# =====================================================================
+
+def get_analyzed_asteroids(
+    limit: int = 200, 
+    sort: str = "risk_score", 
+    order: str = "desc"
+) -> List[Dict[str, Any]]:
+    """Get list of analyzed asteroids."""
     try:
-        response = requests.get(
+        response = _session.get(
             f"{API_BASE_URL}/pipeline/analysis/asteroids",
             params={
                 "limit": limit,
                 "sort": sort,
                 "order": order,
             },
-            timeout=10,
+            timeout=REQUEST_TIMEOUT,
         )
-        if response.status_code == 200:
-            return response.json()
+        response.raise_for_status()
+        data = response.json()
+        
+        # Handle both direct list and wrapped response
+        if isinstance(data, list):
+            return data
+        return data.get("asteroids", [])
+    except requests.RequestException as e:
+        logger.error(f"Failed to get analyzed asteroids: {e}")
         return []
-    except requests.RequestException:
+
+def get_logs(limit: int = 100) -> List[Dict[str, Any]]:
+    """Get recent logs from Python API."""
+    try:
+        response = _session.get(
+            f"{API_BASE_URL}/logs",
+            params={"limit": limit},
+            timeout=DEFAULT_TIMEOUT,
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        if isinstance(data, list):
+            return data
+        return data.get("logs", [])
+    except requests.RequestException as e:
+        logger.error(f"Failed to get logs: {e}")
+        return []
+
+def get_asteroids(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = 100
+) -> List[Dict[str, Any]]:
+    """Get NASA asteroids (not analyzed yet)."""
+    params = {"limit": limit}
+    if start_date:
+        params["start_date"] = start_date
+    if end_date:
+        params["end_date"] = end_date
+
+    try:
+        response = _session.get(
+            f"{API_BASE_URL}/nasa/neo/feed",
+            params=params,
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Handle both direct list and wrapped response
+        if isinstance(data, list):
+            return data
+        return data.get("asteroids", data.get("near_earth_objects", []))
+    except requests.RequestException as e:
+        logger.error(f"Failed to get asteroids: {e}")
         return []
