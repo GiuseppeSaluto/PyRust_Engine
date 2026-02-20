@@ -17,6 +17,8 @@ class Asteroid:
             "id": self.id,
             "name": self.name,
             "absolute_magnitude_h": self.absolute_magnitude_h,
+            "diameter_min_km": self.diameter_km,
+            "diameter_max_km": self.diameter_km,
             "diameter_avg_km": self.diameter_km,
             "close_approach_date": self.close_approach_date,
             "relative_velocity_kps": self.velocity_kps,
