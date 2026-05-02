@@ -7,6 +7,7 @@ from app.core.nasa_client import get_neo_feed
 from app.routes.nasa import nasa_bp
 from app.routes.analysis import analysis_bp
 from app.routes.orchestration import orchestration_bp
+from app.routes.logs import logs_bp
 from app.utils.logger import logger
 
 
@@ -70,6 +71,7 @@ def create_app():
     app.register_blueprint(nasa_bp)
     app.register_blueprint(analysis_bp)
     app.register_blueprint(orchestration_bp)
+    app.register_blueprint(logs_bp)
 
     seed_thread = threading.Thread(
         target=_seed_asteroids_on_startup,
