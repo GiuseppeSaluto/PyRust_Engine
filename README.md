@@ -136,13 +136,132 @@ NASA API → Python API → MongoDB (asteroids_raw)
 
 ---
 
-## Technology Stack
+## Quick Start
 
-- **Python 3.x** — Flask, PyMongo, Requests
-- **Rust** — Axum, Tokio, Serde
-- **MongoDB** — Document storage
-- **Docker** — Containerization
-- **Textual** — Dashboard (planned)
+### 🚀 One-Command Launch (Recommended)
+
+To start the entire system with a dedicated window for the dashboard:
+
+```bash
+./infra/scripts/start_dev.sh
+```
+
+This script:
+- ✅ Starts MongoDB (if not already running)
+- ✅ Compiles and starts the Rust Engine
+- ✅ Starts the Python API
+- ✅ Waits for all services to be ready
+- ✅ Opens the Textual dashboard in a new terminal window
+- ✅ Handles automatic service shutdown
+
+**Prerequisites:**
+- MongoDB installed locally (`mongod`)
+- Rust toolchain (`cargo`)
+- Python 3.8+ with virtual environments
+- Virtual environments configured for all services
+
+### Manual Launch (Alternative)
+
+If you prefer to start services manually:
+
+1. **MongoDB**
+   ```bash
+   mongod --dbpath /tmp/mongodb --logpath /tmp/mongodb.log --fork
+   # OR with Docker: docker run -d -p 27017:27017 --name mongodb mongo:latest
+   ```
+
+2. **Rust Engine** (new terminal)
+   ```bash
+   cd services/rust-engine
+   cargo run
+   ```
+
+3. **Python API** (new terminal)
+   ```bash
+   cd services/python-api
+   source venv/bin/activate
+   python -m app.main
+   ```
+
+4. **Dashboard** (new terminal)
+   ```bash
+   cd services/dashboard
+   source venv/bin/activate
+   python -m app.main
+   ```
+
+### Virtual Environment Setup
+
+Before first launch, configure virtual environments:
+
+```bash
+# Python API
+cd services/python-api
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Dashboard
+cd ../dashboard
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Troubleshooting
+
+### Launcher can't find MongoDB
+```bash
+# On Ubuntu/Debian
+sudo apt update && sudo apt install mongodb
+
+# On macOS
+brew install mongodb-community
+
+# Verify
+mongod --version
+```
+
+### Launcher can't find Rust
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Verify
+cargo --version
+```
+
+### Missing virtual environment
+```bash
+# For Python API
+cd services/python-api
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# For Dashboard
+cd ../dashboard
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Services won't start
+- Check that ports 27017, 5001, 8080 are not in use
+- Check logs in `/tmp/mongodb.log` for MongoDB
+- Check terminal logs for Rust compilation errors
+- Ensure virtual environments are activated correctly
+
+### Dashboard doesn't open automatically
+The launcher tries different terminal emulators. If none work:
+1. Manually open a new terminal
+2. Navigate to `services/dashboard`
+3. Activate venv: `source venv/bin/activate`
+4. Launch: `python -m app.main`
+
+### Service shutdown
+When you close the launcher, Python and Rust services are terminated automatically. MongoDB remains active (you can terminate it manually if needed). Docker containers started by the launcher are also stopped automatically.
 
 ---
 

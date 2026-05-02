@@ -78,12 +78,25 @@ Defaults:
 
 ## Running
 
-### Development
+### 🚀 Automatic Launch (Recommended)
+
+Use the main project launcher to start everything automatically:
+
 ```bash
-python3 app/main.py
+# From project root
+./infra/scripts/start_dev.sh
 ```
 
-### From workspace task
+This will open the dashboard in a dedicated terminal window after starting all services.
+
+### Manual Launch
+
+#### Development
+```bash
+python3 -m app.main
+```
+
+#### From workspace task
 ```
 Cmd/Ctrl + Shift + B → Select "Run Dashboard"
 ```
